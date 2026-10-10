@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'roteiro-cuiaba-v1';
+const CACHE_VERSION = 'roteiro-cuiaba-v2';
 const APP_SHELL = [
   './',
   './index.html',
