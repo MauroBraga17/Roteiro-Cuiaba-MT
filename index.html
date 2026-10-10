@@ -127,6 +127,13 @@
         .visit-badge.warning { background: #fff1cc; color: #7a4d00; }
         .visit-badge.conflict { background: #fee2e2; color: #991b1b; }
         .search-field { grid-column: 1 / -1; }
+        .timeline-visit { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 12px; position: relative; margin-bottom: 10px; padding: 14px 12px; border: 1px solid #dfe7ed; border-radius: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.05); }
+        .timeline-visit.next-visit { background: #e8f7ed; border-color: #69b77d; outline: 1px solid #69b77d; }
+        .timeline-time { color: #d35400; font-size: .9rem; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+        .timeline-clinic { color: #17324d; font-weight: 800; line-height: 1.25; }
+        .timeline-doctor { margin-top: 5px; color: #4b5d6b; font-size: .86rem; line-height: 1.35; }
+        .timeline-region { display: inline-block; margin-top: 7px; border-radius: 999px; padding: 3px 7px; background: #edf3f7; color: #526273; font-size: .68rem; font-weight: 800; }
+        .timeline-visit .visit-alerts { grid-column: 2; justify-content: flex-start; margin: 0; }
 
         .doctor-time {
             font-weight: bold;
@@ -167,6 +174,7 @@
             .day-selector { font-size: .9rem; padding: 8px; }
             .schedule-list { padding: 10px 12px 24px; }
             .region-card { padding: 13px; margin-bottom: 10px; }
+            .timeline-visit { grid-template-columns: 74px minmax(0, 1fr); }
             .mobile-nav { display: grid; grid-template-columns: 1fr 1fr; position: fixed; z-index: 2000; bottom: 0; left: 0; right: 0; height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; box-shadow: 0 -4px 18px rgba(17,24,39,.14); }
             .map-context { display: block; position: fixed; z-index: 1400; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 110px); padding: 9px 13px; border-radius: 999px; background: rgba(23,50,77,.94); color: #fff; font-size: .76rem; font-weight: 800; text-align: center; white-space: nowrap; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
             body[data-view="list"] .map-context { display: none; }
@@ -544,68 +552,42 @@
             const futureExactTimes = allVisible.map(visit => visit.schedule.start).filter(time => time !== null && (!selectedIsToday || time >= nowMinutes));
             const nextTime = selectedIsToday && futureExactTimes.length ? Math.min(...futureExactTimes) : null;
 
-            for (const [region, doctors] of Object.entries(dayData)) {
-                
-                // Filtra os médicos pela clínica e horário
-                let filteredDocs = doctors.filter(doc => matchesFilters(doc, region));
+            const sortedVisits = [...allVisible].sort((a, b) =>
+                a.schedule.sortMinutes - b.schedule.sortMinutes ||
+                Number(a.schedule.approximate) - Number(b.schedule.approximate) ||
+                a.clinic.localeCompare(b.clinic, 'pt-BR')
+            );
+            totalVisits = sortedVisits.length;
+            visibleRegions = new Set(sortedVisits.map(visit => visit.region)).size;
 
-                if (filteredDocs.length === 0) continue; // Pula a região se não houver consultas após o filtro
-                totalVisits += filteredDocs.length;
-                visibleRegions += 1;
+            sortedVisits.forEach(visit => {
+                const isNext = nextTime !== null && visit.schedule.start === nextTime;
+                const sameTime = visit.schedule.start !== null && exactTimeCounts.get(visit.schedule.start) > 1;
+                const alerts = [
+                    isNext ? '<span class="visit-badge next">PRÓXIMA VISITA</span>' : '',
+                    visit.schedule.approximate ? '<span class="visit-badge warning">HORÁRIO A CONFIRMAR</span>' : '',
+                    sameTime ? '<span class="visit-badge conflict">MESMO HORÁRIO</span>' : ''
+                ].filter(Boolean).join('');
+                const card = document.createElement('article');
+                card.className = `timeline-visit ${isNext ? 'next-visit' : ''}`;
+                card.innerHTML = `
+                    <div class="timeline-time">${visit.time}</div>
+                    <div>
+                        <div class="timeline-clinic">🏥 ${visit.clinic}</div>
+                        <div class="timeline-doctor">${visit.name}</div>
+                        <span class="timeline-region">📍 ${visit.region}</span>
+                    </div>
+                    ${alerts ? `<div class="visit-alerts">${alerts}</div>` : ''}
+                `;
+                scheduleList.appendChild(card);
 
-                // Cria o card na sidebar para a Região
-                const card = document.createElement('div');
-                card.className = 'region-card';
-                card.innerHTML = `<div class="region-title">${region}</div>`;
-                
-                // Prepara o popup agregado por região para o mapa
-                if (!regionPopups[region]) {
-                    regionPopups[region] = `<div class="popup-title">${region}</div>`;
+                if (!regionPopups[visit.region]) {
+                    regionPopups[visit.region] = `<div class="popup-title">${visit.region}</div>`;
                 }
-
-                // Sort doctors by time (menor para maior)
-                filteredDocs.sort((a, b) => parseSchedule(a.time).sortMinutes - parseSchedule(b.time).sortMinutes);
-
-                // Group by clinic within the region
-                const clinicGroups = {};
-                filteredDocs.forEach(doc => {
-                        if (!clinicGroups[doc.clinic]) {
-                            clinicGroups[doc.clinic] = [];
-                        }
-                        clinicGroups[doc.clinic].push(doc);
-                    });
-
-                    // Render clinics
-                    for (const [clinicName, clinicDocs] of Object.entries(clinicGroups)) {
-                        card.innerHTML += `<div style="font-weight:bold; font-size:0.9rem; color:#d35400; margin-top:10px; margin-bottom:5px;">🏥 ${clinicName}</div>`;
-                        regionPopups[region] += `<div style="color:#d35400; font-size:0.85rem; margin-top:5px;"><b>🏥 ${clinicName}</b></div>`;
-                        
-                        clinicDocs.forEach(doc => {
-                            const schedule = parseSchedule(doc.time);
-                            const isNext = nextTime !== null && schedule.start === nextTime;
-                            const sameTime = schedule.start !== null && exactTimeCounts.get(schedule.start) > 1;
-                            const alerts = [
-                                isNext ? '<span class="visit-badge next">PRÓXIMA VISITA</span>' : '',
-                                schedule.approximate ? '<span class="visit-badge warning">HORÁRIO A CONFIRMAR</span>' : '',
-                                sameTime ? '<span class="visit-badge conflict">MESMO HORÁRIO</span>' : ''
-                            ].filter(Boolean).join('');
-                            card.innerHTML += `
-                                <div class="doctor-item ${isNext ? 'next-visit' : ''}" style="padding-left:10px;">
-                                    <span class="doctor-time">${doc.time}</span>
-                                    <span class="doctor-name">${doc.name}</span>
-                                </div>
-                                ${alerts ? `<div class="visit-alerts">${alerts}</div>` : ''}
-                            `;
-                            regionPopups[region] += `
-                                <div class="popup-item" style="padding-left:10px; font-size: 0.8rem;">
-                                    <strong>${doc.time}</strong> - ${doc.name}
-                                </div>
-                            `;
-                        });
-                    }
-
-                    scheduleList.appendChild(card);
-            }
+                regionPopups[visit.region] += `
+                    <div class="popup-item"><strong>${visit.time}</strong> · ${visit.clinic}<br>${visit.name}</div>
+                `;
+            });
 
             // Adiciona marcadores no mapa (1 por região)
             for (const [region, popupHtml] of Object.entries(regionPopups)) {
