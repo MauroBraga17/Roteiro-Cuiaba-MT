@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiro de Visitas - Cuiabá e Várzea Grande</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #f5f7fa;
+        }
+
+        #sidebar {
+            width: 350px;
+            background: white;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .header {
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+        }
+
+        .header h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .day-selector {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background: #34495e;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        #map {
+            flex-grow: 1;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        .schedule-list {
+            padding: 15px;
+        }
+
+        .region-card {
+            background: #fff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .region-title {
+            font-weight: bold;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .doctor-item {
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .doctor-time {
+            font-weight: bold;
+            color: #e67e22;
+            min-width: 50px;
+        }
+
+        /* Marker Popup Styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+        }
+        .leaflet-popup-content {
+            margin: 15px;
+        }
+        .popup-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .popup-item {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="header">
+            <h2>Filtros do Roteiro</h2>
+            <select id="daySelect" class="day-selector" onchange="updateMapByDay()">
+                <option value="segunda">Segunda-feira</option>
+                <option value="terca">Terça-feira</option>
+                <option value="quarta">Quarta-feira</option>
+                <option value="quinta">Quinta-feira</option>
+                <option value="sexta">Sexta-feira</option>
+            </select>
+            
+            <select id="timeSelect" class="day-selector" onchange="updateMapByDay()" style="margin-top: 8px;">
+                <option value="all">Qualquer horário</option>
+                <option value="manha">Manhã (até 12:00)</option>
+                <option value="tarde">Tarde (após 12:00)</option>
+            </select>
+
+            <select id="clinicSelect" class="day-selector" onchange="updateMapByDay()" style="margin-top: 8px;">
+                <option value="all">Todas as Clínicas</option>
+            </select>
+        </div>
+        <div id="scheduleList" class="schedule-list">
+            <!-- Populado via JS -->
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+    <script>
+        // Coordenadas aproximadas dos bairros/regiões para plotagem
+        const regions = {
+            "Araés": [-15.5890, -56.0880],
+            "Centro e Quilombo": [-15.5989, -56.0949],
+            "Jardim Cuiabá": [-15.6030, -56.1130],
+            "Santa Rosa": [-15.5850, -56.1180],
+            "Várzea Grande": [-15.6486, -56.1326]
+        };
+
+        // Base de dados com Clínicas
+        const data = {
+            "segunda": {
+                "Araés": [
+                    { clinic: "Hosp. Santa Helena", time: "11:30", name: "Helio Marcelo Pesenti Sandrin" }
+                ],
+                "Centro e Quilombo": [
+                    { clinic: "Hosp UNIMED", time: "08:00 as 11:00", name: "Rafaela Guimaraes de Souza" },
+                    { clinic: "Clínica Piu Vita", time: "08:30", name: "Ana Gisela Arruda" },
+                    { clinic: "Edifício Xingu", time: "09:00 as 11:00", name: "Daniella Araujo Muniz" },
+                    { clinic: "Edifício Xingu", time: "09:00 as 10:00", name: "Evelyn Ferrari" },
+                    { clinic: "Clínica Sinueta", time: "13:30", name: "Waldirson" },
+                    { clinic: "HGU", time: "Final da Tarde", name: "Leonidas Santos De" }
+                ],
+                "Jardim Cuiabá": [
+                    { clinic: "Clínica Atrium", time: "07:00", name: "Ali Kassen / Fause / Valdiney / Maria Paula" },
+                    { clinic: "MT Gastro", time: "07:40", name: "Brenno Myrael Rosal" },
+                    { clinic: "SB Medical", time: "08:30", name: "Germano Augusto Alves" },
+                    { clinic: "SB Medical", time: "10:30", name: "Tamires Pires" },
+                    { clinic: "Incardio", time: "09:00 as 13:30", name: "Ivo Delojo" },
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Tamiris Silva Freire" },
+                    { clinic: "Rua das Orquídeas", time: "Manhã", name: "Dayanne Caroline Marmit" },
+                    { clinic: "Clínica Impele", time: "13:40", name: "Marcela Buissa" },
+                    { clinic: "Inst. do Coração", time: "14:00", name: "Marcos Vinicius Pae de Barros" },
+                    { clinic: "Bom Coração", time: "15:00", name: "Marcos de Thadeu Tenuta Junior" },
+                    { clinic: "Clínica Atrium", time: "15:30", name: "Julio Cesar De" },
+                    { clinic: "Clínica Intro", time: "17:30", name: "Matheusa Weitzel Ferreira" }
+                ],
+                "Santa Rosa": [
+                    { clinic: "Santa Rosa Tower", time: "10:30", name: "Tamiris Silva Freire" },
+                    { clinic: "Espaço Work", time: "11:30", name: "Alriene Flavia Neves" },
+                    { clinic: "Clínica Nnuale", time: "13:00", name: "Marques, Luiz Gustavo / Keily Stefanni" }
+                ],
+                "Várzea Grande": [
+                    { clinic: "Inst. Coração e Pulmão", time: "07:00 as 12:00", name: "Valtiane" },
+                    { clinic: "Cliniprev VG", time: "08:30 as 11:00", name: "Mariana Beber" }
+                ]
+            },
+            "terca": {
+                "Centro e Quilombo": [
+                    { clinic: "Clínica Spadoni", time: "07:50", name: "Priscila Arruda Spadoni" },
+                    { clinic: "Clínica Sinueta", time: "08:30 as 13:30", name: "Waldirson" },
+                    { clinic: "Edifício Xingu", time: "09:00 as 10:00", name: "Evelyn Ferrari" },
+                    { clinic: "Edifício Xingu", time: "13:00 as 17:00", name: "Daniella Araujo Muniz" },
+                    { clinic: "HGU", time: "Final da Manhã", name: "Claudio Eduardo Sousa" },
+                    { clinic: "HGU", time: "Final da Tarde", name: "Leonidas Santos De" }
+                ],
+                "Jardim Cuiabá": [
+                    { clinic: "Bom Coração", time: "08:00", name: "Marcos de Thadeu Tenuta Junior" },
+                    { clinic: "SB Medical", time: "08:00", name: "Germano Augusto Alves" },
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Tamiris Silva Freire" },
+                    { clinic: "Centro Médico", time: "13:30", name: "Andrea Castiglioni Alves" },
+                    { clinic: "MT Gastro", time: "13:40", name: "Brenno Myrael Rosal" },
+                    { clinic: "Inst. do Coração", time: "14:00", name: "Marcos Vinicius Pae de Barros" },
+                    { clinic: "Clínica Atrium", time: "15:30", name: "Julio Cesar De" },
+                    { clinic: "Clínica Intro", time: "17:30", name: "Matheusa Weitzel Ferreira" }
+                ],
+                "Santa Rosa": [
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Ezilaine" },
+                    { clinic: "Santa Rosa Tower", time: "10:30", name: "Tamiris Silva Freire" },
+                    { clinic: "Espaço Work", time: "12:00", name: "Graciele Alves Correa Lima" },
+                    { clinic: "Clínica Nnuale", time: "13:00", name: "Marques, Luiz Gustavo / Keily Stefanni" }
+                ]
+            },
+            "quarta": {
+                "Araés": [
+                    { clinic: "SB Medica", time: "Manhã", name: "Marcos Sucena" },
+                    { clinic: "Hosp. Santa Helena", time: "11:30", name: "Helio Marcelo Pesenti Sandrin" }
+                ],
+                "Centro e Quilombo": [
+                    { clinic: "Clínica Spadoni", time: "07:50", name: "Priscila Arruda Spadoni" },
+                    { clinic: "Edifício Xingu", time: "08:30 as 11:00", name: "Daniella Araujo Muniz" },
+                    { clinic: "Edifício Xingu", time: "09:00 as 10:00", name: "Evelyn Ferrari" },
+                    { clinic: "HGU", time: "Final da Manhã", name: "Carla de Matos" },
+                    { clinic: "HGU", time: "Final da Tarde", name: "Leonidas Santos De" }
+                ],
+                "Jardim Cuiabá": [
+                    { clinic: "MT Gastro", time: "07:30", name: "Brenno Myrael Rosal" },
+                    { clinic: "SB Medical", time: "08:00", name: "Germano Augusto Alves" },
+                    { clinic: "Bom Coração", time: "08:00", name: "Rizia" },
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Tamiris Silva Freire" },
+                    { clinic: "Bom Coração", time: "11:00", name: "Rafael das Neves Menezes" },
+                    { clinic: "Bom Coração", time: "13:30", name: "Larissa Helena Silva" },
+                    { clinic: "Bom Coração", time: "15:00", name: "Marcos de Thadeu Tenuta Junior" },
+                    { clinic: "Hosp. JD Cuiabá (Inova)", time: "16:00", name: "Médico Inova" },
+                    { clinic: "Clínica Intro", time: "17:30", name: "Matheusa Weitzel Ferreira" }
+                ],
+                "Santa Rosa": [
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Ezilaine" },
+                    { clinic: "Santa Rosa Tower", time: "10:30", name: "Tamiris Silva Freire" },
+                    { clinic: "Clínica Nnuale", time: "13:00", name: "Keily Stefanni" },
+                    { clinic: "Espaço Work", time: "13:30", name: "Alriene Flavia Neves" }
+                ],
+                "Várzea Grande": [
+                    { clinic: "Clínica Vida", time: "11:30", name: "Silvia Carolina Pereira" },
+                    { clinic: "Clínica Vida", time: "14:00", name: "Janine / Ana Paula Silva Bahia" }
+                ]
+            },
+            "quinta": {
+                "Araés": [
+                    { clinic: "Hosp. Santa Helena", time: "11:30", name: "Helio Marcelo Pesenti Sandrin" }
+                ],
+                "Centro e Quilombo": [
+                    { clinic: "Clínica Spadoni", time: "07:50", name: "Priscila Arruda Spadoni" },
+                    { clinic: "Edifício Xingu", time: "08:30 as 14:00", name: "Daniella Araujo Muniz" },
+                    { clinic: "Edifício Xingu", time: "09:00 as 10:00", name: "Evelyn Ferrari" },
+                    { clinic: "HGU", time: "Final da Tarde", name: "Leonidas Santos De" }
+                ],
+                "Jardim Cuiabá": [
+                    { clinic: "SB Medical", time: "08:00", name: "Germano Augusto Alves" },
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Tamiris Silva Freire" },
+                    { clinic: "SB Medical", time: "10:00", name: "Tamires Pires" },
+                    { clinic: "Clínica Thaís Nogueira", time: "10:00", name: "Vanessa Gogolevsky" },
+                    { clinic: "Av. das Flores", time: "10:00", name: "Micheli Nascimento" },
+                    { clinic: "Incardio", time: "13:00", name: "Nadia Maria" },
+                    { clinic: "Jardins de Eva", time: "13:00", name: "Renata Sardinha" },
+                    { clinic: "Centro Médico", time: "13:30", name: "Andrea Castiglioni Alves" },
+                    { clinic: "Santa Maria", time: "14:00", name: "Kaysa Nicolle Teixeira" },
+                    { clinic: "Inst. do Coração", time: "14:00", name: "Marco Yunes Casarotto" },
+                    { clinic: "Bom Coração", time: "15:00", name: "Marcos de Thadeu Tenuta Junior" },
+                    { clinic: "SB Medical", time: "17:30", name: "Isabela Benvenuti" },
+                    { clinic: "Clínica Intro", time: "17:30", name: "Matheusa Weitzel Ferreira" }
+                ],
+                "Santa Rosa": [
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Ezilaine" },
+                    { clinic: "Santa Rosa Tower", time: "10:30", name: "Tamiris Silva Freire" },
+                    { clinic: "Clínica Nnuale", time: "13:00", name: "Marques, L. Gustavo / Keily Stefanni" },
+                    { clinic: "Santa Rosa Tower", time: "15:00", name: "Jorge de Araujo Lafeta" }
+                ],
+                "Várzea Grande": [
+                    { clinic: "Amor e Saúde", time: "Tarde", name: "Erick Tiago De Jesus Assunção" }
+                ]
+            },
+            "sexta": {
+                "Araés": [
+                    { clinic: "Hosp. Santa Helena", time: "11:30", name: "Helio Marcelo Pesenti Sandrin" }
+                ],
+                "Centro e Quilombo": [
+                    { clinic: "Clínica Spadoni", time: "07:50", name: "Priscila Arruda Spadoni" },
+                    { clinic: "Edifício Xingu", time: "08:30 as 11:00", name: "Daniella Araujo Muniz" },
+                    { clinic: "Edifício Xingu", time: "09:00 as 10:00", name: "Evelyn Ferrari" },
+                    { clinic: "Clínica Sinueta", time: "09:30", name: "Waldirson" },
+                    { clinic: "Revivere", time: "09:30", name: "Yara" },
+                    { clinic: "Hosp UNIMED", time: "13:00 as 17:00", name: "Rafaela Guimaraes de Souza" },
+                    { clinic: "HGU", time: "Final da Tarde", name: "Leonidas Santos De" }
+                ],
+                "Jardim Cuiabá": [
+                    { clinic: "Clínica Impele", time: "07:30", name: "Marcela Buissa" },
+                    { clinic: "Santa Rosa Tower", time: "09:00", name: "Tamiris Silva Freire" },
+                    { clinic: "Clínica Atrium", time: "09:00", name: "Julio Cesar De" },
+                    { clinic: "Clínica Thaís Nogueira", time: "10:00", name: "Vanessa Santos Gogolevsky" },
+                    { clinic: "Santa Maria", time: "14:00", name: "Kaysa Nicolle Teixeira" },
+                    { clinic: "Bom Coração", time: "15:00", name: "Marcos de Thadeu Tenuta Junior" },
+                    { clinic: "Clínica Intro", time: "17:30", name: "Matheusa Weitzel Ferreira" }
+                ],
+                "Santa Rosa": [
+                    { clinic: "Santa Rosa Tower", time: "10:30", name: "Tamiris Silva Freire" },
+                    { clinic: "Clínica Nnuale", time: "13:00", name: "Marques, Luiz Gustavo" },
+                    { clinic: "Espaço Work", time: "13:30", name: "Alriene Flavia Neves" }
+                ],
+                "Várzea Grande": [
+                    { clinic: "Cliniprev VG", time: "09:00 as 12:00", name: "Mariana Beber" },
+                    { clinic: "Inst. Coração e Pulmão", time: "09:00 as 12:00", name: "Valtiane" },
+                    { clinic: "Clínica Vida", time: "11:30 as 13:00", name: "Silvia Carolina Pereira" }
+                ]
+            }
+        };
+
+        // Inicializa o Mapa
+        const map = L.map('map').setView([-15.6010, -56.0979], 13);
+
+        // Adiciona a camada de mapa (Esri) que é 100% gratuito e não exige API
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri',
+            maxZoom: 18
+        }).addTo(map);
+
+        let markers = [];
+
+        function updateMapByDay() {
+            const dayKey = document.getElementById('daySelect').value;
+            const timeFilter = document.getElementById('timeSelect').value;
+            const clinicSelect = document.getElementById('clinicSelect');
+            const currentClinic = clinicSelect.value;
+            
+            const dayData = data[dayKey];
+            
+            // Popula as clínicas disponíveis dinamicamente de acordo com o dia
+            clinicSelect.innerHTML = '<option value="all">Todas as Clínicas</option>';
+            if (dayData) {
+                const clinics = new Set();
+                for (const doctors of Object.values(dayData)) {
+                    doctors.forEach(d => clinics.add(d.clinic));
+                }
+                Array.from(clinics).sort().forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.innerText = c;
+                    clinicSelect.appendChild(opt);
+                });
+                // Mantém a clínica selecionada se ela existir neste dia
+                if (clinics.has(currentClinic)) {
+                    clinicSelect.value = currentClinic;
+                }
+            }
+
+            renderMapDataForDay(dayKey, timeFilter, clinicSelect.value);
+        }
+
+        function parseTime(t) {
+            if (!t) return 9999;
+            let str = t.toLowerCase();
+            let match = str.match(/(\d{1,2}):(\d{2})/);
+            if (match) return parseInt(match[1]) * 100 + parseInt(match[2]);
+            if (str.includes('manhã') || str.includes('manha')) return 800;
+            if (str.includes('tarde')) return 1400;
+            return 9999;
+        }
+
+        function renderMapDataForDay(dayKey, timeFilter, clinicFilter) {
+            const scheduleList = document.getElementById('scheduleList');
+            
+            // Limpa marcadores e lista anterior
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            scheduleList.innerHTML = '';
+
+            const dayData = data[dayKey];
+            if (!dayData) {
+                scheduleList.innerHTML = '<div style="padding:15px; text-align:center; color:#666;">Nenhuma visita programada para este dia.</div>';
+                return;
+            }
+            
+            // Agrupador para marcadores no mapa
+            const regionPopups = {};
+
+            for (const [region, doctors] of Object.entries(dayData)) {
+                
+                // Filtra os médicos pela clínica e horário
+                let filteredDocs = doctors.filter(doc => {
+                    if (clinicFilter !== 'all' && doc.clinic !== clinicFilter) return false;
+                    
+                    if (timeFilter !== 'all') {
+                        const t = parseTime(doc.time);
+                        if (timeFilter === 'manha' && t >= 1200 && t !== 9999) return false;
+                        if (timeFilter === 'tarde' && t < 1200) return false;
+                    }
+                    return true;
+                });
+
+                if (filteredDocs.length === 0) continue; // Pula a região se não houver consultas após o filtro
+
+                // Cria o card na sidebar para a Região
+                const card = document.createElement('div');
+                card.className = 'region-card';
+                card.innerHTML = `<div class="region-title">${region}</div>`;
+                
+                // Prepara o popup agregado por região para o mapa
+                if (!regionPopups[region]) {
+                    regionPopups[region] = `<div class="popup-title">${region}</div>`;
+                }
+
+                // Sort doctors by time (menor para maior)
+                filteredDocs.sort((a, b) => parseTime(a.time) - parseTime(b.time));
+
+                // Group by clinic within the region
+                const clinicGroups = {};
+                filteredDocs.forEach(doc => {
+                        if (!clinicGroups[doc.clinic]) {
+                            clinicGroups[doc.clinic] = [];
+                        }
+                        clinicGroups[doc.clinic].push(doc);
+                    });
+
+                    // Render clinics
+                    for (const [clinicName, clinicDocs] of Object.entries(clinicGroups)) {
+                        card.innerHTML += `<div style="font-weight:bold; font-size:0.9rem; color:#d35400; margin-top:10px; margin-bottom:5px;">🏥 ${clinicName}</div>`;
+                        regionPopups[region] += `<div style="color:#d35400; font-size:0.85rem; margin-top:5px;"><b>🏥 ${clinicName}</b></div>`;
+                        
+                        clinicDocs.forEach(doc => {
+                            card.innerHTML += `
+                                <div class="doctor-item" style="padding-left:10px;">
+                                    <span class="doctor-time">${doc.time}</span>
+                                    <span class="doctor-name">${doc.name}</span>
+                                </div>
+                            `;
+                            regionPopups[region] += `
+                                <div class="popup-item" style="padding-left:10px; font-size: 0.8rem;">
+                                    <strong>${doc.time}</strong> - ${doc.name}
+                                </div>
+                            `;
+                        });
+                    }
+
+                    scheduleList.appendChild(card);
+            }
+
+            // Adiciona marcadores no mapa (1 por região)
+            for (const [region, popupHtml] of Object.entries(regionPopups)) {
+                if (regions[region]) {
+                    const marker = L.marker(regions[region]).addTo(map);
+                    marker.bindPopup(popupHtml, { maxHeight: 300 });
+                    markers.push(marker);
+                }
+            }
+            
+            // Ajusta o zoom do mapa para caber todos os marcadores filtrados
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.2));
+            } else {
+                // Se não houver nada após filtrar, mostra mensagem no mapa/sidebar
+                scheduleList.innerHTML = '<div style="padding:15px; text-align:center; color:#666;">Nenhum agendamento encontrado para este filtro.</div>';
+            }
+        }
+
+        // Define a segunda-feira como padrão ao abrir
+        document.addEventListener('DOMContentLoaded', () => {
+            updateMapByDay();
+        });
+    </script>
+</body>
+</html>
