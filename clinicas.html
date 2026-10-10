@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17324d">
+  <title>Clínicas — Roteiro Cuiabá</title><link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root{font-family:"Segoe UI",system-ui,sans-serif;color:#243447;background:#f4f7f9}*{box-sizing:border-box}body{margin:0}header{position:sticky;top:0;z-index:5;padding:18px max(18px,calc((100vw - 1320px)/2));background:linear-gradient(145deg,#17324d,#275d7d);color:#fff;box-shadow:0 3px 12px #0002}.top{display:flex;align-items:center;justify-content:space-between;gap:16px}.top h1{margin:0;font-size:1.25rem}.back{border:1px solid #ffffff88;border-radius:8px;padding:9px 12px;color:#fff;text-decoration:none;font-weight:700}.controls{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.35fr);gap:10px;margin-top:14px}input,select{width:100%;min-height:44px;border:0;border-radius:8px;padding:10px 12px;font:inherit}main{max-width:1320px;margin:auto;padding:20px}.source{margin:0 0 16px;color:#637381}.clinic{margin-bottom:18px;border:1px solid #dae4ea;border-radius:12px;background:#fff;box-shadow:0 3px 10px #17324d0c;overflow:hidden}.clinic h2{margin:0;padding:14px 16px;background:#edf5f8;color:#17324d;font-size:1rem}.region{font-size:.75rem;color:#637381;font-weight:600}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:1000px}th,td{padding:10px 12px;border-top:1px solid #e5ebef;text-align:left;vertical-align:top;font-size:.8rem}th{color:#526273;background:#fafcfd;font-size:.7rem;text-transform:uppercase}td:first-child{font-weight:700;color:#17324d}.missing{color:#8a98a5;font-style:italic}.issue{color:#8a4b00;background:#fff3d6;border-radius:5px;padding:3px 6px;font-weight:700}.issues{margin:18px 0;padding:15px;border:1px solid #f1cf88;border-radius:10px;background:#fff8e8}.issues summary{cursor:pointer;font-weight:800;color:#7a4d00}.issues li{margin:8px 0;font-size:.82rem}.empty{text-align:center;padding:40px;color:#637381}@media(max-width:700px){header{padding:14px}.top h1{font-size:1.05rem}.controls{grid-template-columns:1fr}main{padding:12px}.clinic{border-radius:9px}th,td{padding:9px;font-size:.76rem}}
+  </style>
+</head>
+<body>
+  <header><div class="top"><h1>Cadastro por clínica</h1><a class="back" href="index.html?view=list">← Agenda</a></div><div class="controls"><input id="search" type="search" placeholder="Buscar clínica, médico, especialidade ou telefone"><select id="region"><option value="all">Todas as regiões</option></select></div></header>
+  <main><p id="source" class="source"></p><details id="issues" class="issues"><summary></summary><ul></ul></details><div id="directory"></div></main>
+  <script src="data/schedule-data.js"></script>
+  <script>
+    const source=window.scheduleSource||{records:[],issues:[]};
+    const dayLabels={segunda:'Segunda-feira',terca:'Terça-feira',quarta:'Quarta-feira',quinta:'Quinta-feira',sexta:'Sexta-feira'};
+    const missing=value=>value||'<span class="missing">Não informado</span>';
+    const normalize=value=>(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const phone=value=>{const digits=(value||'').replace(/\D/g,'');return digits.length>=8?`<a href="tel:${digits}">${value}</a>`:missing(value)};
+    const regions=[...new Set(source.records.map(item=>item.region))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    const regionSelect=document.getElementById('region'); regions.forEach(region=>regionSelect.add(new Option(region,region)));
+    document.getElementById('source').textContent=`${source.records.length} registros importados de ${source.sourceFile||'planilha'}. Os dados são exibidos sem alterações automáticas.`;
+    const issuesBox=document.getElementById('issues');issuesBox.querySelector('summary').textContent=`${source.issues.length} valores de horário precisam de revisão`;
+    issuesBox.querySelector('ul').innerHTML=source.issues.map(issue=>`<li><strong>${issue.clinic}</strong> — ${issue.doctor}: ${dayLabels[issue.day]} = <span class="issue">${issue.value}</span> (${issue.source})</li>`).join('');if(!source.issues.length)issuesBox.hidden=true;
+    function render(){
+      const query=normalize(document.getElementById('search').value),selectedRegion=regionSelect.value;
+      const records=source.records.filter(item=>(selectedRegion==='all'||item.region===selectedRegion)&&(!query||normalize(`${item.clinic} ${item.doctor} ${item.specialty} ${item.scheduled} ${item.phone} ${item.region}`).includes(query)));
+      const groups=new Map();records.forEach(item=>{const key=`${item.region}|${item.clinic}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)});
+      const html=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt-BR')).map(([,items])=>{const first=items[0];const rows=items.map(item=>`<tr><td>${item.doctor}</td><td>${missing(item.specialty)}</td><td>${missing(item.scheduled)}</td><td>${phone(item.phone)}</td>${Object.keys(dayLabels).map(day=>`<td>${missing(item.days[day])}</td>`).join('')}</tr>`).join('');return `<section class="clinic"><h2>${first.clinic} <span class="region">• ${first.region}</span></h2><div class="table-wrap"><table><thead><tr><th>Médico</th><th>ESP</th><th>Agendado</th><th>Telefone</th>${Object.values(dayLabels).map(day=>`<th>${day}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></section>`}).join('');
+      document.getElementById('directory').innerHTML=html||'<div class="empty">Nenhum registro encontrado.</div>';
+    }
+    document.getElementById('search').addEventListener('input',render);regionSelect.addEventListener('change',render);render();if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
+  </script>
+</body>
+</html>

@@ -51,6 +51,7 @@
         .current-moment { margin: -8px 0 14px; padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.11); font-size: .84rem; font-weight: 700; }
         .install-button { display: none; border: 1px solid rgba(255,255,255,.55); border-radius: 8px; padding: 8px 10px; background: rgba(255,255,255,.12); color: #fff; font-weight: 700; cursor: pointer; }
         .install-button.available { display: inline-flex; }
+        .directory-link { border: 1px solid rgba(255,255,255,.55); border-radius: 8px; padding: 8px 10px; color: #fff; font-size: .76rem; font-weight: 700; text-decoration: none; }
         .filters { display: grid; gap: 8px; }
         .field-label { display: block; font-size: .72rem; font-weight: 700; color: #d9ebf5; margin-bottom: 4px; }
         .day-tabs { display: grid; grid-template-columns: repeat(7, minmax(39px, 1fr)); gap: 4px; margin-bottom: 12px; }
@@ -132,6 +133,8 @@
         .timeline-time { color: #d35400; font-size: .9rem; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
         .timeline-clinic { color: #17324d; font-weight: 800; line-height: 1.25; }
         .timeline-doctor { margin-top: 5px; color: #4b5d6b; font-size: .86rem; line-height: 1.35; }
+        .timeline-meta { display: grid; gap: 3px; margin-top: 7px; color: #637381; font-size: .75rem; line-height: 1.3; }
+        .timeline-meta a { color: #176b8f; font-weight: 700; text-decoration: none; }
         .timeline-region { display: inline-block; margin-top: 7px; border-radius: 999px; padding: 3px 7px; background: #edf3f7; color: #526273; font-size: .68rem; font-weight: 800; }
         .timeline-visit .visit-alerts { grid-column: 2; justify-content: flex-start; margin: 0; }
 
@@ -175,10 +178,10 @@
             .schedule-list { padding: 10px 12px 24px; }
             .region-card { padding: 13px; margin-bottom: 10px; }
             .timeline-visit { grid-template-columns: 74px minmax(0, 1fr); }
-            .mobile-nav { display: grid; grid-template-columns: 1fr 1fr; position: fixed; z-index: 2000; bottom: 0; left: 0; right: 0; height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; box-shadow: 0 -4px 18px rgba(17,24,39,.14); }
+            .mobile-nav { display: grid; grid-template-columns: repeat(3, 1fr); position: fixed; z-index: 2000; bottom: 0; left: 0; right: 0; height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; box-shadow: 0 -4px 18px rgba(17,24,39,.14); }
             .map-context { display: block; position: fixed; z-index: 1400; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 110px); padding: 9px 13px; border-radius: 999px; background: rgba(23,50,77,.94); color: #fff; font-size: .76rem; font-weight: 800; text-align: center; white-space: nowrap; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
             body[data-view="list"] .map-context { display: none; }
-            .mobile-nav button { border: 0; background: transparent; color: #526273; font-size: .82rem; font-weight: 700; cursor: pointer; }
+            .mobile-nav button, .mobile-nav a { display: grid; place-items: center; border: 0; background: transparent; color: #526273; font-size: .82rem; font-weight: 700; cursor: pointer; text-decoration: none; }
             .mobile-nav button.active { color: #176b8f; background: #edf7fa; }
             .network-status { bottom: calc(76px + env(safe-area-inset-bottom)); }
             .leaflet-control-zoom { margin-top: max(12px, env(safe-area-inset-top)) !important; }
@@ -194,6 +197,7 @@
         <div class="header">
             <div class="app-title">
                 <h1>Roteiro de Visitas</h1>
+                <a class="directory-link" href="clinicas.html">Clínicas</a>
                 <button id="installButton" class="install-button" type="button" aria-label="Instalar aplicativo">Instalar</button>
             </div>
             <p class="subtitle">Cuiabá e Várzea Grande</p>
@@ -234,6 +238,20 @@
                 <option value="all">Todas as Clínicas</option>
             </select>
             </div>
+            <div>
+            <label class="field-label" for="specialtySelect">ESPECIALIDADE</label>
+            <select id="specialtySelect" class="day-selector" onchange="updateMapByDay()">
+                <option value="all">Todas</option>
+            </select>
+            </div>
+            <div>
+            <label class="field-label" for="statusSelect">AGENDAMENTO</label>
+            <select id="statusSelect" class="day-selector" onchange="updateMapByDay()">
+                <option value="all">Todos</option>
+                <option value="scheduled">Com responsável/status</option>
+                <option value="unscheduled">Não informado</option>
+            </select>
+            </div>
             <div class="search-field">
             <label class="field-label" for="searchInput">BUSCAR MÉDICO, CLÍNICA OU REGIÃO</label>
             <input id="searchInput" class="day-selector" type="search" inputmode="search" placeholder="Digite para buscar" autocomplete="off">
@@ -251,11 +269,13 @@
     <nav class="mobile-nav" aria-label="Visualização">
         <button id="mapViewButton" class="active" type="button" aria-pressed="true">🗺️ Mapa</button>
         <button id="listViewButton" type="button" aria-pressed="false">📋 Agenda</button>
+        <a href="clinicas.html">🏥 Clínicas</a>
     </nav>
     <div id="networkStatus" class="network-status" role="status">Online</div>
 
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="data/schedule-data.js"></script>
 
     <script>
         // Coordenadas aproximadas dos bairros/regiões para plotagem
@@ -268,7 +288,7 @@
         };
 
         // Base de dados com Clínicas
-        const data = {
+        const legacyData = {
             "segunda": {
                 "Araés": [
                     { clinic: "Hosp. Santa Helena", time: "11:30", name: "Helio Marcelo Pesenti Sandrin" }
@@ -435,6 +455,25 @@
             }
         };
 
+        const directory = window.scheduleSource?.records || [];
+        const data = {};
+        for (const record of directory) {
+            for (const [day, time] of Object.entries(record.days)) {
+                if (!time) continue;
+                data[day] ||= {};
+                data[day][record.region] ||= [];
+                data[day][record.region].push({
+                    clinic: record.clinic,
+                    time,
+                    name: record.doctor,
+                    specialty: record.specialty,
+                    scheduled: record.scheduled,
+                    phone: record.phone,
+                    source: record.source
+                });
+            }
+        }
+
         // Inicializa o Mapa
         const map = L.map('map').setView([-15.6010, -56.0979], 13);
 
@@ -451,6 +490,9 @@
             const timeFilter = document.getElementById('timeSelect').value;
             const clinicSelect = document.getElementById('clinicSelect');
             const currentClinic = clinicSelect.value;
+            const specialtySelect = document.getElementById('specialtySelect');
+            const currentSpecialty = specialtySelect.value;
+            const statusFilter = document.getElementById('statusSelect').value;
             const searchTerm = document.getElementById('searchInput').value;
             const dayLabel = document.getElementById('daySelect').selectedOptions[0].textContent;
             const periodLabel = document.getElementById('timeSelect').selectedOptions[0].textContent;
@@ -465,10 +507,15 @@
             
             // Popula as clínicas disponíveis dinamicamente de acordo com o dia
             clinicSelect.innerHTML = '<option value="all">Todas as Clínicas</option>';
+            specialtySelect.innerHTML = '<option value="all">Todas</option>';
             if (dayData) {
                 const clinics = new Set();
+                const specialties = new Set();
                 for (const doctors of Object.values(dayData)) {
-                    doctors.forEach(d => clinics.add(d.clinic));
+                    doctors.forEach(d => {
+                        clinics.add(d.clinic);
+                        if (d.specialty) specialties.add(d.specialty);
+                    });
                 }
                 Array.from(clinics).sort().forEach(c => {
                     const opt = document.createElement('option');
@@ -480,9 +527,16 @@
                 if (clinics.has(currentClinic)) {
                     clinicSelect.value = currentClinic;
                 }
+                Array.from(specialties).sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(specialty => {
+                    const option = document.createElement('option');
+                    option.value = specialty;
+                    option.textContent = specialty;
+                    specialtySelect.appendChild(option);
+                });
+                if (specialties.has(currentSpecialty)) specialtySelect.value = currentSpecialty;
             }
 
-            renderMapDataForDay(dayKey, timeFilter, clinicSelect.value, searchTerm);
+            renderMapDataForDay(dayKey, timeFilter, clinicSelect.value, specialtySelect.value, statusFilter, searchTerm);
         }
 
         const weekdayKeys = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
@@ -505,7 +559,7 @@
             return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         }
 
-        function renderMapDataForDay(dayKey, timeFilter, clinicFilter, searchTerm) {
+        function renderMapDataForDay(dayKey, timeFilter, clinicFilter, specialtyFilter, statusFilter, searchTerm) {
             const scheduleList = document.getElementById('scheduleList');
             const summary = document.getElementById('summary');
             
@@ -529,7 +583,10 @@
             const query = normalizeText(searchTerm);
             const matchesFilters = (doc, region) => {
                 if (clinicFilter !== 'all' && doc.clinic !== clinicFilter) return false;
-                if (query && !normalizeText(`${doc.name} ${doc.clinic} ${region}`).includes(query)) return false;
+                if (specialtyFilter !== 'all' && doc.specialty !== specialtyFilter) return false;
+                if (statusFilter === 'scheduled' && !doc.scheduled) return false;
+                if (statusFilter === 'unscheduled' && doc.scheduled) return false;
+                if (query && !normalizeText(`${doc.name} ${doc.clinic} ${region} ${doc.specialty} ${doc.scheduled} ${doc.phone}`).includes(query)) return false;
                 if (timeFilter !== 'all') {
                     const schedule = parseSchedule(doc.time);
                     const inMorning = schedule.morningText || (schedule.start !== null && schedule.start < 720);
@@ -568,6 +625,9 @@
                     visit.schedule.approximate ? '<span class="visit-badge warning">HORÁRIO A CONFIRMAR</span>' : '',
                     sameTime ? '<span class="visit-badge conflict">MESMO HORÁRIO</span>' : ''
                 ].filter(Boolean).join('');
+                const phoneDigits = (visit.phone || '').replace(/\D/g, '');
+                const phoneDisplay = visit.phone || 'Não informado';
+                const phoneHtml = phoneDigits.length >= 8 ? `<a href="tel:${phoneDigits}">${phoneDisplay}</a>` : phoneDisplay;
                 const card = document.createElement('article');
                 card.className = `timeline-visit ${isNext ? 'next-visit' : ''}`;
                 card.innerHTML = `
@@ -575,6 +635,11 @@
                     <div>
                         <div class="timeline-clinic">🏥 ${visit.clinic}</div>
                         <div class="timeline-doctor">${visit.name}</div>
+                        <div class="timeline-meta">
+                            <span><strong>ESP:</strong> ${visit.specialty || 'Não informado'}</span>
+                            <span><strong>Agendado:</strong> ${visit.scheduled || 'Não informado'}</span>
+                            <span><strong>Telefone:</strong> ${phoneHtml}</span>
+                        </div>
                         <span class="timeline-region">📍 ${visit.region}</span>
                     </div>
                     ${alerts ? `<div class="visit-alerts">${alerts}</div>` : ''}
@@ -585,7 +650,7 @@
                     regionPopups[visit.region] = `<div class="popup-title">${visit.region}</div>`;
                 }
                 regionPopups[visit.region] += `
-                    <div class="popup-item"><strong>${visit.time}</strong> · ${visit.clinic}<br>${visit.name}</div>
+                    <div class="popup-item"><strong>${visit.time}</strong> · ${visit.clinic}<br>${visit.name}<br>ESP: ${visit.specialty || 'Não informado'} · Tel: ${phoneDisplay}</div>
                 `;
             });
 
@@ -606,7 +671,9 @@
                 // Se não houver nada após filtrar, mostra mensagem no mapa/sidebar
                 scheduleList.innerHTML = '<div class="empty-state">Nenhum agendamento encontrado para este filtro.</div>';
             }
-            summary.textContent = `${totalVisits} ${totalVisits === 1 ? 'visita' : 'visitas'} em ${visibleRegions} ${visibleRegions === 1 ? 'região' : 'regiões'}`;
+            const nextVisit = nextTime === null ? null : sortedVisits.find(visit => visit.schedule.start === nextTime);
+            const nextSummary = nextVisit ? ` • Próxima: ${nextVisit.time} — ${nextVisit.name}` : '';
+            summary.textContent = `${totalVisits} ${totalVisits === 1 ? 'visita' : 'visitas'} em ${visibleRegions} ${visibleRegions === 1 ? 'região' : 'regiões'}${nextSummary}`;
         }
 
         // Usa o dia local do aparelho para evitar abrir a agenda no dia errado.

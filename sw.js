@@ -1,7 +1,9 @@
-const CACHE_VERSION = 'roteiro-cuiaba-v4';
+const CACHE_VERSION = 'roteiro-cuiaba-v5';
 const APP_SHELL = [
   './',
   './index.html',
+  './clinicas.html',
+  './data/schedule-data.js',
   './manifest.webmanifest',
   './offline.html',
   './icons/app-icon.svg',
