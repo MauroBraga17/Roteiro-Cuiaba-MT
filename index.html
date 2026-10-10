@@ -30,7 +30,7 @@
         }
 
         #sidebar {
-            width: 350px;
+            width: clamp(480px, 55vw, 720px);
             background: white;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             display: flex;
@@ -187,17 +187,18 @@
             .leaflet-control-zoom { margin-top: max(12px, env(safe-area-inset-top)) !important; }
         }
 
-        @media (min-width: 761px) and (max-width: 1050px) { #sidebar { width: 320px; } }
+        @media (min-width: 761px) and (max-width: 1050px) { #sidebar { width: 52vw; min-width: 420px; } }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
     </style>
 </head>
-<body data-view="map">
+<body data-view="list">
 
     <div id="sidebar">
         <div class="header">
             <div class="app-title">
                 <h1>Roteiro de Visitas</h1>
                 <a class="directory-link" href="clinicas.html">Clínicas</a>
+                <a class="directory-link" href="editar.html">Editar</a>
                 <button id="installButton" class="install-button" type="button" aria-label="Instalar aplicativo">Instalar</button>
             </div>
             <p class="subtitle">Cuiabá e Várzea Grande</p>
@@ -718,7 +719,7 @@
             };
             mapButton.addEventListener('click', () => setView('map'));
             listButton.addEventListener('click', () => setView('list'));
-            if (new URLSearchParams(location.search).get('view') === 'list') setView('list');
+            setView(new URLSearchParams(location.search).get('view') === 'map' ? 'map' : 'list');
 
             const networkStatus = document.getElementById('networkStatus');
             const updateNetworkStatus = () => {

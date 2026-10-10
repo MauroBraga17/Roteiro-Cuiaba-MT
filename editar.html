@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17324d">
+  <title>Editar médicos — Roteiro Cuiabá</title><link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root{font-family:"Segoe UI",system-ui,sans-serif;color:#243447;background:#f4f7f9}*{box-sizing:border-box}body{margin:0}header{padding:18px max(18px,calc((100vw - 920px)/2));background:linear-gradient(145deg,#17324d,#275d7d);color:#fff}.top{display:flex;align-items:center;justify-content:space-between;gap:14px}h1{margin:0;font-size:1.25rem}.back{border:1px solid #ffffff88;border-radius:8px;padding:9px 12px;color:#fff;text-decoration:none;font-weight:700}main{max-width:920px;margin:auto;padding:20px}.notice,.status{padding:14px;border-radius:10px;margin-bottom:15px}.notice{border:1px solid #bed7e3;background:#edf7fa}.status{background:#eef3f7}.status.error{background:#fee2e2;color:#991b1b}.status.success{background:#e8f7ed;color:#166534}.actions{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}button{min-height:44px;border:0;border-radius:8px;padding:10px 14px;background:#176b8f;color:#fff;font-weight:800;cursor:pointer}button.secondary{background:#526273}button:disabled{opacity:.5;cursor:not-allowed}.panel{border:1px solid #dbe5ea;border-radius:12px;padding:18px;background:#fff;box-shadow:0 3px 12px #17324d0d}.field{display:grid;gap:5px;margin-bottom:13px}label{font-size:.76rem;font-weight:800;color:#526273;text-transform:uppercase}input,select{width:100%;min-height:44px;border:1px solid #cbd7de;border-radius:8px;padding:10px 11px;font:inherit;background:#fff}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.days input{min-width:0}.source{font-size:.78rem;color:#637381}.danger{color:#991b1b;font-weight:700}.hidden{display:none!important}@media(max-width:720px){header,main{padding:14px}.grid,.days{grid-template-columns:1fr}.panel{padding:14px}}
+  </style>
+</head>
+<body>
+  <header><div class="top"><h1>Editar médicos no Excel Online</h1><a class="back" href="index.html?view=list">← Agenda</a></div></header>
+  <main>
+    <div class="notice"><strong>Área protegida.</strong> O salvamento altera diretamente a tabela <code>AgendaMedicos</code> no Excel Online. Mudanças de dia e horário exigem confirmação antes do envio.</div>
+    <div id="status" class="status" role="status">Verificando a configuração da Microsoft…</div>
+    <div class="actions"><button id="signIn" type="button">Entrar com Microsoft</button><button id="reload" class="secondary" type="button" disabled>Recarregar Excel</button><button id="signOut" class="secondary hidden" type="button">Sair</button></div>
+    <section id="editor" class="panel hidden">
+      <div class="field"><label for="recordSelect">Médico</label><select id="recordSelect"><option value="">Selecione um médico</option></select></div>
+      <form id="form" class="hidden">
+        <input id="ID" type="hidden">
+        <div class="grid">
+          <div class="field"><label for="Regiao">Região</label><input id="Regiao" required></div>
+          <div class="field"><label for="Clinica">Clínica</label><input id="Clinica" required></div>
+          <div class="field"><label for="Medico">Médico</label><input id="Medico" required></div>
+          <div class="field"><label for="ESP">Especialidade</label><input id="ESP"></div>
+          <div class="field"><label for="Agendado">Agendado</label><input id="Agendado"></div>
+          <div class="field"><label for="Telefone">Telefone</label><input id="Telefone" inputmode="tel"></div>
+        </div>
+        <div class="days">
+          <div class="field"><label for="Segunda">Segunda</label><input id="Segunda" placeholder="07:00"></div>
+          <div class="field"><label for="Terca">Terça</label><input id="Terca" placeholder="07:00"></div>
+          <div class="field"><label for="Quarta">Quarta</label><input id="Quarta" placeholder="07:00"></div>
+          <div class="field"><label for="Quinta">Quinta</label><input id="Quinta" placeholder="07:00"></div>
+          <div class="field"><label for="Sexta">Sexta</label><input id="Sexta" placeholder="07:00"></div>
+        </div>
+        <p class="source">A planilha é a fonte oficial. Confira todos os dias antes de salvar.</p>
+        <button id="save" type="submit">Salvar no Excel Online</button>
+      </form>
+    </section>
+  </main>
+  <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
+  <script src="config/excel-online.js"></script><script src="js/excel-online.js"></script>
+  <script>
+    const fields=['ID','Regiao','Clinica','Medico','ESP','Agendado','Telefone','Segunda','Terca','Quarta','Quinta','Sexta'];const dayFields=['Segunda','Terca','Quarta','Quinta','Sexta'];let records=[],original=null;
+    const statusBox=document.getElementById('status'),signIn=document.getElementById('signIn'),signOut=document.getElementById('signOut'),reload=document.getElementById('reload'),editor=document.getElementById('editor'),select=document.getElementById('recordSelect'),form=document.getElementById('form');
+    function status(message,type=''){statusBox.textContent=message;statusBox.className=`status ${type}`}
+    function fill(record){original={...record};fields.forEach(field=>document.getElementById(field).value=record[field]||'');form.classList.remove('hidden')}
+    function populate(){select.innerHTML='<option value="">Selecione um médico</option>';records.sort((a,b)=>`${a.Medico} ${a.Clinica}`.localeCompare(`${b.Medico} ${b.Clinica}`,'pt-BR')).forEach(record=>select.add(new Option(`${record.Medico} — ${record.Clinica}`,record.ID)));editor.classList.remove('hidden')}
+    async function load(){status('Lendo a tabela AgendaMedicos…');records=await ExcelOnline.listRecords();populate();reload.disabled=false;signIn.classList.add('hidden');signOut.classList.remove('hidden');status(`${records.length} médicos carregados do Excel Online.`,'success')}
+    signIn.addEventListener('click',async()=>{try{await ExcelOnline.signIn();await load()}catch(error){status(error.message,'error')}});reload.addEventListener('click',()=>load().catch(error=>status(error.message,'error')));signOut.addEventListener('click',async()=>{await ExcelOnline.signOut();location.reload()});
+    select.addEventListener('change',()=>{const record=records.find(item=>String(item.ID)===select.value);if(record)fill(record);else form.classList.add('hidden')});
+    form.addEventListener('submit',async event=>{event.preventDefault();const values=Object.fromEntries(fields.filter(field=>field!=='ID').map(field=>[field,document.getElementById(field).value.trim()]));values.AtualizadoEm=new Date().toISOString();const changedDays=dayFields.filter(day=>(original[day]||'')!==values[day]);const message=changedDays.length?`Você alterou horários/dias em: ${changedDays.join(', ')}. Confirma que conferiu esses valores na agenda oficial?`:'Confirma a atualização deste médico no Excel Online?';if(!confirm(message))return;document.getElementById('save').disabled=true;try{status('Salvando no Excel Online…');await ExcelOnline.updateRecord(original.ID,values);status('Médico atualizado com sucesso no Excel Online.','success');await load();select.value=original.ID;fill(records.find(item=>String(item.ID)===String(original.ID)))}catch(error){status(error.message,'error')}finally{document.getElementById('save').disabled=false}});
+    (async()=>{try{const account=await ExcelOnline.initialize();if(account)await load();else status('Configuração encontrada. Entre com sua conta Microsoft para editar.')}catch(error){status(error.message,'error')}})();
+  </script>
+</body>
+</html>
