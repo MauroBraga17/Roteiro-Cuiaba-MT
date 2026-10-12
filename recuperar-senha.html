@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17324d"><meta name="robots" content="noindex">
+  <title>Recuperar senha — Roteiro Cuiabá</title><link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <header class="brand"><h1>Roteiro de Visitas</h1><p>Recuperação segura de acesso</p></header>
+    <section class="card" aria-labelledby="title">
+      <h2 id="title">Recuperar senha</h2><p class="intro">Você receberá um link de recuperação no e-mail cadastrado.</p>
+      <form id="resetForm">
+        <div class="field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+        <button id="submit" type="submit">Enviar link</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <a class="link-button" href="login.html">Voltar para o login</a>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/supabase.js"></script><script src="js/supabase-client.js"></script>
+  <script>
+    "use strict";
+    const form=document.getElementById("resetForm"),statusBox=document.getElementById("status"),submit=document.getElementById("submit");
+    const show=(message,type="")=>{statusBox.textContent=message;statusBox.className=`status ${type}`};
+    form.addEventListener("submit",async event=>{event.preventDefault();submit.disabled=true;show("Solicitando recuperação…");try{const client=RoteiroAuth.getClient();const redirectTo=new URL("nova-senha.html",location.href).href;const {error}=await client.auth.resetPasswordForEmail(form.email.value.trim(),{redirectTo});if(error)throw error;show("Se o e-mail estiver cadastrado, o link será enviado.","success");form.reset()}catch(error){show(error.message||"Não foi possível enviar o link.","error")}finally{submit.disabled=false}});
+  </script>
+</body>
+</html>

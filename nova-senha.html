@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17324d"><meta name="robots" content="noindex">
+  <title>Nova senha — Roteiro Cuiabá</title><link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <header class="brand"><h1>Roteiro de Visitas</h1><p>Defina uma nova senha</p></header>
+    <section class="card" aria-labelledby="title">
+      <h2 id="title">Nova senha</h2><p class="intro">Escolha uma senha com pelo menos oito caracteres.</p>
+      <form id="passwordForm">
+        <div class="field"><label for="password">Nova senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div class="field"><label for="confirmation">Confirmar senha</label><input id="confirmation" name="confirmation" type="password" autocomplete="new-password" minlength="8" required></div>
+        <button id="submit" type="submit">Atualizar senha</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/supabase.js"></script><script src="js/supabase-client.js"></script>
+  <script>
+    "use strict";
+    const form=document.getElementById("passwordForm"),statusBox=document.getElementById("status"),submit=document.getElementById("submit");
+    const show=(message,type="")=>{statusBox.textContent=message;statusBox.className=`status ${type}`};
+    form.addEventListener("submit",async event=>{event.preventDefault();if(form.password.value!==form.confirmation.value){show("As senhas não são iguais.","error");return}submit.disabled=true;try{const {error}=await RoteiroAuth.getClient().auth.updateUser({password:form.password.value});if(error)throw error;show("Senha atualizada. Redirecionando…","success");setTimeout(()=>location.replace("login.html"),1200)}catch(error){show(error.message||"Não foi possível atualizar a senha.","error")}finally{submit.disabled=false}});
+  </script>
+</body>
+</html>
