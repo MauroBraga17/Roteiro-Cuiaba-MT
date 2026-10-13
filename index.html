@@ -17,6 +17,8 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="config/supabase.js"></script><script defer src="js/supabase-client.js"></script><script defer src="js/auth-guard.js"></script>
     <style>
         body {
             margin: 0;
@@ -684,7 +686,9 @@
             const todayKey = weekdayKeys[now.getDay()];
             const daySelect = document.getElementById('daySelect');
             const requestedDay = new URLSearchParams(location.search).get('day');
+            const requestedSearch = new URLSearchParams(location.search).get('q');
             daySelect.value = weekdayKeys.includes(requestedDay) ? requestedDay : todayKey;
+            if (requestedSearch) document.getElementById('searchInput').value = requestedSearch;
             document.querySelectorAll('.day-tab').forEach(button => {
                 button.classList.toggle('today', button.dataset.day === todayKey);
                 button.addEventListener('click', () => {

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'roteiro-cuiaba-v7';
+const CACHE_VERSION = 'roteiro-cuiaba-v9-now';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,9 +6,20 @@ const APP_SHELL = [
   './agora.html',
   './clinicas.html',
   './editar.html',
+  './login.html',
+  './recuperar-senha.html',
+  './nova-senha.html',
+  './css/auth.css',
+  './js/supabase-client.js',
+  './js/auth-guard.js',
+  './js/schedule-rules.js',
+  './js/schedule-repository.js',
+  './js/now-view.js',
+  './js/dashboard-v2.js',
+  './css/dashboard-v2.css',
+  './css/now-v2.css',
   './config/excel-online.js',
   './js/excel-online.js',
-  './data/schedule-data.js',
   './manifest.webmanifest',
   './offline.html',
   './icons/app-icon.svg',
@@ -37,15 +48,24 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
+  const requestUrl = new URL(event.request.url);
+  const isPrivateData = requestUrl.hostname.endsWith('.supabase.co') ||
+    requestUrl.pathname.endsWith('/data/schedule-data.js') ||
+    requestUrl.pathname.endsWith('/config/supabase.js');
+  if (isPrivateData) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then(response => {
           const copy = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put('./index.html', copy));
+          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match('./index.html').then(response => response || caches.match('./offline.html')))
+        .catch(() => caches.match(event.request).then(response => response || caches.match('./offline.html')))
     );
     return;
   }
