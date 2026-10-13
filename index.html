@@ -686,7 +686,9 @@
             const todayKey = weekdayKeys[now.getDay()];
             const daySelect = document.getElementById('daySelect');
             const requestedDay = new URLSearchParams(location.search).get('day');
+            const requestedSearch = new URLSearchParams(location.search).get('q');
             daySelect.value = weekdayKeys.includes(requestedDay) ? requestedDay : todayKey;
+            if (requestedSearch) document.getElementById('searchInput').value = requestedSearch;
             document.querySelectorAll('.day-tab').forEach(button => {
                 button.classList.toggle('today', button.dataset.day === todayKey);
                 button.addEventListener('click', () => {

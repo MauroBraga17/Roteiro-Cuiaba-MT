@@ -1,0 +1,16 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Testes de horário</title></head><body data-result="running"><pre id="output"></pre><script src="../js/schedule-rules.js"></script><script>
+const results=[];function test(name,condition){results.push({name,pass:Boolean(condition)})}
+const clock=ScheduleRules.cuiabaNow(new Date('2026-10-12T11:00:00Z'));
+test('fuso America/Cuiaba converte 11:00 UTC para 07:00',clock.minutes===420&&clock.timeLabel==='07:00');
+test('dia da semana em Cuiabá é segunda',clock.weekday===1);
+test('início é inclusivo',ScheduleRules.classify({weekday:1,starts_at:'07:00:00',ends_at:'08:00:00'},clock)==='now');
+test('fim é exclusivo',ScheduleRules.classify({weekday:1,starts_at:'06:00:00',ends_at:'07:00:00'},clock)==='finished');
+test('horário futuro aparece como mais tarde',ScheduleRules.classify({weekday:1,starts_at:'07:30:00',ends_at:'08:00:00'},clock)==='later');
+test('horário de outro dia não aparece',ScheduleRules.classify({weekday:3,starts_at:'07:00:00',ends_at:'08:00:00'},clock)==='other-day');
+test('horário textual exige confirmação',ScheduleRules.classify({weekday:1,starts_at:null,ends_at:null,original_label:'Manhã'},clock)==='confirm');
+test('horário sem fim vale somente no minuto inicial',ScheduleRules.classify({weekday:1,starts_at:'07:00:00',ends_at:null},clock)==='now');
+test('cidade selecionada não mistura resultados',ScheduleRules.filterByCity([{city_id:'a'},{city_id:'b'}],'a').length===1);
+test('todas as cidades é explícito',ScheduleRules.filterByCity([{city_id:'a'},{city_id:'b'}],'all').length===2);
+test('dois períodos do mesmo médico são preservados',ScheduleRules.sortVisits([{doctor_name:'A',starts_at:'14:00:00'},{doctor_name:'A',starts_at:'08:00:00'}]).length===2);
+const failed=results.filter(result=>!result.pass);document.body.dataset.result=failed.length?'failed':'passed';document.getElementById('output').textContent=results.map(result=>`${result.pass?'OK':'FALHA'} - ${result.name}`).join('\n');
+</script></body></html>

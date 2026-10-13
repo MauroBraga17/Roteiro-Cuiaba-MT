@@ -17,7 +17,9 @@ senha, chave secreta, `service_role` ou conexão do banco pela conversa.
 1. Acesse <https://supabase.com/dashboard> e crie um projeto.
 2. Escolha uma senha forte para o banco e guarde-a no gerenciador de senhas.
 3. Não envie essa senha pela conversa e não coloque-a neste repositório.
-4. No projeto, abra **SQL Editor** e execute o conteúdo da migração SQL.
+4. No projeto, abra **SQL Editor** e execute, nesta ordem, os arquivos da pasta
+   `supabase/migrations`: primeiro `202610120001_initial_private_schema.sql` e
+   depois `202610120002_seed_initial_cities.sql`.
 5. Em **Authentication > URL Configuration**, informe como Site URL:
    `https://maurobraga17.github.io/Roteiro-Cuiaba-MT/`
 6. Adicione às Redirect URLs:

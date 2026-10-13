@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'roteiro-cuiaba-v8-auth';
+const CACHE_VERSION = 'roteiro-cuiaba-v9-now';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,6 +12,12 @@ const APP_SHELL = [
   './css/auth.css',
   './js/supabase-client.js',
   './js/auth-guard.js',
+  './js/schedule-rules.js',
+  './js/schedule-repository.js',
+  './js/now-view.js',
+  './js/dashboard-v2.js',
+  './css/dashboard-v2.css',
+  './css/now-v2.css',
   './config/excel-online.js',
   './js/excel-online.js',
   './manifest.webmanifest',
